@@ -6,12 +6,16 @@ const cron = require('node-cron');
 const targetUrl = process.env.TARGET_URL;
 const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
 const cronTime = process.env.CRON_TIME || '*/5 * * * *';
+const lastError = {}
 
 // Health check function
 const performHealthCheck = async () => {
   try {
-    const response = await axios.get(targetUrl);
+    const response = await axios.get(targetUrl,{
+      timeout: 29000
+    });
     if (response.status === 200) {
+      lastError={}
       console.log(`Health check for ${targetUrl} passed successfully.`);
     } else {
       throw new Error(`${response.status}`);
@@ -25,7 +29,14 @@ const performHealthCheck = async () => {
 // Slack notification function
 const sendSlackNotification = async (message) => {
   try {
-    await axios.post(slackWebhookUrl, { text: message });
+    if(!lastError[message]){
+      lastError[message] = Date.now();
+      return await axios.post(slackWebhookUrl, { text: message });
+    }
+    if(lastError[message] + 180000 > Date.now()){
+      lastError[message] = Date.now();
+      return await axios.post(slackWebhookUrl, { text: message + "(Issue Haven't Fixed Yet!)" });
+    }
   } catch (error) {
     console.error('Error sending Slack notification:', error.message);
   }
