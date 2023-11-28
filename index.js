@@ -33,7 +33,7 @@ const sendSlackNotification = async (message) => {
       lastError[message] = Date.now();
       return await axios.post(slackWebhookUrl, { text: message });
     }
-    if(lastError[message] + 180000 > Date.now()){
+    if(lastError[message] + 180000 < Date.now()){
       lastError[message] = Date.now();
       return await axios.post(slackWebhookUrl, { text: message + "(Issue Haven't Fixed Yet!)" });
     }
