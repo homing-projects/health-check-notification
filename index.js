@@ -6,7 +6,7 @@ const cron = require('node-cron');
 const targetUrl = process.env.TARGET_URL;
 const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
 const cronTime = process.env.CRON_TIME || '*/5 * * * *';
-const lastError = {}
+let lastError = {}
 
 // Health check function
 const performHealthCheck = async () => {
