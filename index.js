@@ -2,38 +2,43 @@ require('dotenv').config();
 const axios = require('axios');
 const cron = require('node-cron');
 
-
 const targetUrl = process.env.TARGET_URL;
 const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
 const cronTime = process.env.CRON_TIME || '*/5 * * * *';
-let lastError = {}
+let lastError = {};
+
+const ignoreError = ['EAI_AGAIN'];
 
 // Health check function
 const performHealthCheck = async () => {
   try {
-    const response = await axios.get(targetUrl,{
-      timeout: 29000
+    const response = await axios.get(targetUrl, {
+      timeout: 30000,
     });
     if (response.status === 200) {
-      lastError={}
+      lastError = {};
       console.log(`Health check for ${targetUrl} passed successfully.`);
     } else {
       throw new Error(`${response.status}`);
     }
   } catch (error) {
     console.error('Error during health check:', error.message);
-    sendSlackNotification(`Server is down! Health check for ${targetUrl} failed ${error.message}`);
+    if (ignoreError.every((x) => !error.message?.includes(x))) {
+      sendSlackNotification(
+        `Server is down! Health check for ${targetUrl} failed ${error.message}`,
+      );
+    }
   }
 };
 
 // Slack notification function
 const sendSlackNotification = async (message) => {
   try {
-    if(!lastError[message]){
+    if (!lastError[message]) {
       lastError[message] = Date.now();
       return await axios.post(slackWebhookUrl, { text: message });
     }
-    if(lastError[message] + 180000 < Date.now()){
+    if (lastError[message] + 300000 < Date.now()) {
       lastError[message] = Date.now();
       return await axios.post(slackWebhookUrl, { text: message + "(Issue Haven't Fixed Yet!)" });
     }
