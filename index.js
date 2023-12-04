@@ -6,15 +6,15 @@ const targetUrl = process.env.TARGET_URL;
 const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
 const cronTime = process.env.CRON_TIME || '*/5 * * * *';
 let lastError = {};
+let isRunning = false;
 
 const ignoreError = ['EAI_AGAIN'];
 
 // Health check function
 const performHealthCheck = async () => {
+  isRunning = true;
   try {
-    const response = await axios.get(targetUrl, {
-      timeout: 30000,
-    });
+    const response = await axios.get(targetUrl);
     if (response.status === 200) {
       lastError = {};
       console.log(`Health check for ${targetUrl} passed successfully.`);
@@ -29,6 +29,7 @@ const performHealthCheck = async () => {
       );
     }
   }
+  isRunning = false
 };
 
 // Slack notification function
@@ -49,6 +50,6 @@ const sendSlackNotification = async (message) => {
 
 // Schedule health check every 5 minutes (adjust as needed)
 cron.schedule(cronTime, () => {
-  console.log('Running health check...');
-  performHealthCheck();
+  console.log('Running health check... ! Is running:'+ isRunning);
+  if(!isRunning) performHealthCheck();
 });
