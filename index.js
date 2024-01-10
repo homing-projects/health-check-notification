@@ -8,10 +8,10 @@ const cronTime = process.env.CRON_TIME || '*/5 * * * *';
 let lastError = {};
 let isRunning = false;
 
-const ignoreError = ['EAI_AGAIN'];
+const ignoreError = ['EAI_AGAIN', 'ECONNRESET', '524'];
 
 // Health check function
-const performHealthCheck = async () => {
+const performHealthCheck = async (tryCount = 0) => {
   isRunning = true;
   try {
     const response = await axios.get(targetUrl);
@@ -19,7 +19,10 @@ const performHealthCheck = async () => {
       lastError = {};
       console.log(`Health check for ${targetUrl} passed successfully.`);
     } else {
-      throw new Error(`${response.status}`);
+      if (tryCount == 3) {
+        throw new Error(`${response.status}`);
+      }
+      return setTimeout(() => performHealthCheck(tryCount + 1), 5000);
     }
   } catch (error) {
     console.error('Error during health check:', error.message);
@@ -29,7 +32,7 @@ const performHealthCheck = async () => {
       );
     }
   }
-  isRunning = false
+  isRunning = false;
 };
 
 // Slack notification function
@@ -41,7 +44,7 @@ const sendSlackNotification = async (message) => {
     }
     if (lastError[message] + 300000 < Date.now()) {
       lastError[message] = Date.now();
-      return await axios.post(slackWebhookUrl, { text: message + "(Issue Haven't Fixed Yet!)" });
+      return await axios.post(slackWebhookUrl, { text: message + " (Issue Haven't Fixed Yet!)" });
     }
   } catch (error) {
     console.error('Error sending Slack notification:', error.message);
@@ -50,6 +53,6 @@ const sendSlackNotification = async (message) => {
 
 // Schedule health check every 5 minutes (adjust as needed)
 cron.schedule(cronTime, () => {
-  console.log('Running health check... ! Is running:'+ isRunning);
-  if(!isRunning) performHealthCheck();
+  console.log('Running health check... ! Is running: ' + isRunning);
+  if (!isRunning) performHealthCheck();
 });
